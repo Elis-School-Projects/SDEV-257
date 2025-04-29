@@ -1,0 +1,101 @@
+import React, { useState, useEffect } from "react";
+import { View, Text, StatusBar, ScrollView, TextInput } from "react-native";
+import Animated, { SlideInLeft, SlideOutRight } from "react-native-reanimated";
+import NetInfo from "@react-native-community/netinfo";
+
+const connectedMap = {
+  none: "Disconnected",
+  unknown: "Disconnected",
+  wifi: "Connected",
+  cell: "Connected",
+  mobile: "Connected",
+};
+
+import SpaceshipsImage from "../assets/spaceships.png";
+import LazyImage from "../components/LazyImage";
+import Swipeable from "../components/Swipeable";
+import Alert from "../components/Alert";
+import styles from "../styles";
+
+export default function Spaceships({ navigation }) {
+  // Create var for API Data
+  const [data, setData] = useState([]);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [connected, setConnected] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Check Network Connection
+  useEffect(() => {
+    function onNetworkChange(connection) {
+      setConnected(connectedMap[connection.type]);
+    }
+
+    const unsubscribe = NetInfo.addEventListener(onNetworkChange);
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+    
+  // Fetch Films Data from SWAPI
+  useEffect(() => {
+    fetch('https://www.swapi.tech/api/starships')
+      .then(response => response.json())
+      .then((data) => {
+        setData(data.results);
+      });
+  }, []);
+    
+  // Helper Functions
+  const dismiss = () => setAlertVisible(false);
+  function onSwipe(name) {
+    return () => {
+      setAlertMessage(name);
+      setAlertVisible(true);
+      setData(data.filter((item) => item.name !== name));
+    };
+  }
+  
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+
+      <LazyImage
+        style={{ width: 200, height: 150 }}
+        resizeMode="contain"
+        source={SpaceshipsImage}
+      />
+
+      <Text style={styles.title}>Spaceships</Text>
+      <Text>{connected}</Text>
+
+      <View style={styles.inputContainer}>
+        <TextInput style={styles.input} placeholder={'Search for Planets'} value={searchTerm} onChangeText={text => setSearchTerm(text)} />
+      </View>
+      
+      {/* Display List Items */}
+      <View style={styles.itemContainer}>
+        <ScrollView style={styles.list}>
+          {
+            data.filter(value => {return value.name.includes(searchTerm)}).map((item, index) => {
+              return <Animated.View key={index} entering={SlideInLeft} exiting={SlideOutRight}><Swipeable name={item.name} onSwipe={onSwipe(item.name)} /></Animated.View>
+            })
+          }
+        </ScrollView>
+      </View>
+
+      <Alert
+        message={alertMessage}
+        visible={alertVisible}
+        buttons={[
+          {
+            text: "Dismiss",
+            onPress: dismiss
+          },
+        ]}
+      />
+  
+    </View>
+  );
+}
